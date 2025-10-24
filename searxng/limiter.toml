@@ -1,3 +1,107 @@
+# Rate limiting configuration for SearxNG
+# Protects against abuse while allowing legitimate API and web usage
+
 [botdetection.ip_limit]
-# activate link_token method in the ip_limit method
+# Activate link_token method in the ip_limit method
 link_token = true
+
+[botdetection.ip_lists]
+# IP lists to trust/block
+pass_ip = [
+    '127.0.0.0/8',
+    '::1/128',
+    '192.168.0.0/16',
+    '172.16.0.0/12',
+    '10.0.0.0/8',
+    'fd00::/8',
+    'fe80::/10',
+]
+
+block_ip = []
+
+[botdetection.http_accept]
+# Block suspicious HTTP Accept headers
+http_accept_suspicious_ip_window = 3600
+
+[botdetection.http_accept_encoding]
+# Block suspicious HTTP Accept-Encoding headers
+http_accept_encoding_suspicious_ip_window = 3600
+
+[botdetection.http_accept_language]
+# Block suspicious HTTP Accept-Language headers
+http_accept_language_suspicious_ip_window = 3600
+
+[botdetection.http_user_agent]
+# Block suspicious or missing User-Agent headers
+http_user_agent_suspicious_ip_window = 3600
+
+# Requests per minute from an IP
+[botdetection.ip_limit.link_token]
+# GET requests (including JSON API)
+GET = 30
+# POST requests (including JSON API)
+POST = 10
+
+# Maximum number of suspicious behaviors before temporary block
+[botdetection.ip_limit.max_suspicious_behavior]
+GET = 3
+POST = 2
+
+# Duration of temporary block in seconds
+[botdetection.ip_limit.ban_duration]
+GET = 300
+POST = 600
+
+# Advanced rate limiting for specific endpoints
+[botdetection.ip_limit.special]
+# Search endpoint rate limits
+'/search' = 20
+# JSON API rate limits (more permissive for API users)
+'/search?format=json' = 60
+'/search?format=csv' = 30
+'/search?format=rss' = 30
+
+# Autocomplete endpoint limits
+[botdetection.ip_limit.autocomplete]
+max_qph = 600  # Maximum queries per hour per IP
+
+# Image proxy limits (prevent abuse)
+[botdetection.ip_limit.image_proxy]
+max_qph = 300
+
+# Allow-list for API clients (bypass rate limits)
+# Add specific IPs or subnets for API clients that need higher limits
+[botdetection.ip_lists.api_whitelist]
+pass_ip = [
+    # Add your trusted API client IPs here
+    # Example: '203.0.113.0/24',
+]
+
+# Configuration for Redis-based rate limiting
+[limiter]
+# Enable Redis for distributed rate limiting
+use_redis = true
+# Redis connection URL (must match docker-compose configuration)
+redis_url = "redis://172.31.0.77:6397/0"
+
+# Sliding window rate limits (requests per time window)
+[limiter.window]
+# 60 requests per minute per IP for all endpoints
+default = { requests = 60, window = 60 }
+
+# More permissive limits for JSON API
+json = { requests = 120, window = 60 }
+
+# Conservative limits for POST requests
+post = { requests = 20, window = 60 }
+
+# Autocomplete specific window
+autocomplete = { requests = 300, window = 3600 }
+
+# Burst limits - allow short bursts above the sustained rate
+[limiter.burst]
+# Allow up to 10 requests immediately, then enforce rate limit
+default = 10
+json = 20
+post = 5
+autocomplete = 30

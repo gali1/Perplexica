@@ -1,17 +1,841 @@
 use_default_settings: true
 
 general:
-  instance_name: 'searxng'
+  debug: false
+  instance_name: "SearxNG"
+  privacypolicy_url: false
+  donation_url: false
+  contact_url: false
+  enable_metrics: true
 
 search:
-  autocomplete: 'google'
+  safe_search: 0
+  autocomplete: "google"
+  autocomplete_min: 2
+  default_lang: "auto"
+  ban_time_on_fail: 5
+  max_ban_time_on_fail: 120
+  suspended_times:
+    SearxEngineAccessDenied: 86400
+    SearxEngineCaptcha: 86400
+    SearxEngineTooManyRequests: 3600
+    cf_SearxEngineCaptcha: 86400
+    cf_SearxEngineAccessDenied: 86400
+    recaptcha_SearxEngineCaptcha: 604800
   formats:
     - html
     - json
+    - csv
+    - rss
 
 server:
-  secret_key: 'a2fb23f1b02e6ee83875b09826990de0f6bd908b6638e8c10277d415f6ab852b' # Is overwritten by ${SEARXNG_SECRET}
+  secret_key: "a2fb23f1b02e6ee83875b09826990de0f6bd908b6638e8c10277d415f6ab852b"
+  limiter: true
+  image_proxy: true
+  http_protocol_version: "1.1"
+  method: "POST"
+  default_http_headers:
+    X-Content-Type-Options: nosniff
+    X-Download-Options: noopen
+    X-Robots-Tag: noindex, nofollow
+    Referrer-Policy: no-referrer
+    X-Frame-Options: DENY
+    Content-Security-Policy: "upgrade-insecure-requests; default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; form-action 'self' https://github.com/searxng/searxng/issues/new; font-src 'self'; frame-ancestors 'self'; base-uri 'self'; connect-src 'self' https://overpass-api.de; img-src 'self' data: https://*; frame-src https://www.youtube-nocookie.com https://player.vimeo.com https://www.dailymotion.com https://www.deezer.com https://www.mixcloud.com https://w.soundcloud.com https://embed.spotify.com"
 
 engines:
-  - name: wolframalpha
+  - name: google
+    engine: google
+    shortcut: go
+    use_mobile_ui: false
+    weight: 1
     disabled: false
+    categories:
+      - general
+      - web
+    timeout: 10.0
+    language: all
+    safe_search: 0
+
+  - name: bing
+    engine: bing
+    shortcut: bi
+    disabled: false
+    categories:
+      - general
+      - web
+    timeout: 10.0
+    weight: 0.8
+
+  - name: duckduckgo
+    engine: duckduckgo
+    shortcut: ddg
+    disabled: false
+    categories:
+      - general
+      - web
+    timeout: 10.0
+    weight: 0.9
+
+  - name: brave
+    engine: xpath
+    shortcut: br
+    categories:
+      - general
+      - web
+    disabled: false
+    timeout: 10.0
+    weight: 0.85
+    paging: true
+    first_page_num: 0
+    search_url: https://search.brave.com/search?q={query}&offset={pageno}&spellcheck=1
+    url_xpath: //a[@class="result-header"]/@href
+    title_xpath: //span[@class="snippet-title"]
+    content_xpath: //p[1][@class="snippet-description"]
+    suggestion_xpath: //div[@class="text-gray h6"]/a
+    about:
+      website: https://brave.com/search/
+      wikidata_id: Q22906900
+      use_official_api: false
+      require_api_key: false
+      results: HTML
+
+  - name: startpage
+    engine: startpage
+    shortcut: sp
+    timeout: 10.0
+    disabled: false
+    categories:
+      - general
+      - web
+    weight: 0.7
+    additional_tests:
+      rosebud: *test_rosebud
+
+  - name: qwant
+    engine: qwant
+    shortcut: qw
+    categories:
+      - general
+      - web
+    disabled: false
+    timeout: 10.0
+    weight: 0.6
+    additional_tests:
+      rosebud: *test_rosebud
+
+  - name: mojeek
+    engine: xpath
+    shortcut: mjk
+    disabled: false
+    categories:
+      - general
+      - web
+    timeout: 10.0
+    weight: 0.5
+    paging: true
+    search_url: https://www.mojeek.com/search?q={query}&s={pageno}
+    results_xpath: /html/body//div[@class="results"]/ul[@class="results-standard"]/li
+    url_xpath: ./h2/a/@href
+    title_xpath: ./h2
+    content_xpath: ./p[@class="s"]
+    suggestion_xpath: /html/body//div[@class="top-info"]/p[@class="top-info spell"]/a
+    first_page_num: 0
+    page_size: 10
+    about:
+      website: https://www.mojeek.com/
+      wikidata_id: Q60747299
+      official_api_documentation: https://www.mojeek.com/services/api.html/
+      use_official_api: false
+      require_api_key: false
+      results: HTML
+
+  - name: wikipedia
+    engine: wikipedia
+    shortcut: wp
+    base_url: 'https://{language}.wikipedia.org/'
+    categories:
+      - general
+    disabled: false
+    timeout: 10.0
+
+  - name: wikidata
+    engine: wikidata
+    shortcut: wd
+    timeout: 10.0
+    disabled: false
+    categories:
+      - general
+    weight: 2
+    tests: *tests_infobox
+
+  - name: currency
+    engine: currency_convert
+    categories: general
+    shortcut: cc
+    disabled: false
+
+  - name: google images
+    engine: google_images
+    shortcut: goi
+    disabled: false
+    categories:
+      - images
+    timeout: 10.0
+
+  - name: bing images
+    engine: bing_images
+    shortcut: bii
+    disabled: false
+    categories:
+      - images
+    timeout: 10.0
+
+  - name: duckduckgo images
+    engine: duckduckgo_images
+    shortcut: ddi
+    timeout: 10.0
+    disabled: false
+    categories:
+      - images
+
+  - name: google news
+    engine: google_news
+    shortcut: gon
+    disabled: false
+    categories:
+      - news
+    timeout: 10.0
+
+  - name: bing news
+    engine: bing_news
+    shortcut: bin
+    disabled: false
+    categories:
+      - news
+    timeout: 10.0
+
+  - name: yahoo news
+    engine: yahoo_news
+    shortcut: yhn
+    disabled: false
+    categories:
+      - news
+    timeout: 10.0
+
+  - name: wikinews
+    engine: mediawiki
+    shortcut: wn
+    categories:
+      - news
+    base_url: "https://{language}.wikinews.org/"
+    number_of_results: 5
+    search_type: text
+    disabled: false
+    timeout: 10.0
+    about:
+      website: https://www.wikinews.org/
+      wikidata_id: Q964
+
+  - name: reddit
+    engine: reddit
+    shortcut: re
+    page_size: 25
+    timeout: 10.0
+    disabled: false
+    categories:
+      - social media
+
+  - name: stackoverflow
+    engine: stackexchange
+    shortcut: st
+    api_site: 'stackoverflow'
+    disabled: false
+    categories:
+      - it
+      - q&a
+    timeout: 10.0
+
+  - name: askubuntu
+    engine: stackexchange
+    shortcut: ubuntu
+    api_site: 'askubuntu'
+    categories:
+      - it
+    disabled: false
+    timeout: 10.0
+
+  - name: superuser
+    engine: stackexchange
+    shortcut: su
+    api_site: 'superuser'
+    categories:
+      - it
+    disabled: false
+    timeout: 10.0
+
+  - name: github
+    engine: github
+    shortcut: gh
+    disabled: false
+    categories:
+      - it
+    timeout: 10.0
+
+  - name: gitlab
+    engine: json_engine
+    paging: true
+    search_url: https://gitlab.com/api/v4/projects?search={query}&page={pageno}&per_page=20
+    url_query: web_url
+    title_query: name_with_namespace
+    content_query: description
+    page_size: 20
+    categories: it
+    shortcut: gl
+    timeout: 10.0
+    disabled: false
+    about:
+      website: https://about.gitlab.com/
+      wikidata_id: Q16639197
+      official_api_documentation: https://docs.gitlab.com/ee/api/
+      use_official_api: false
+      require_api_key: false
+      results: JSON
+
+  - name: bitbucket
+    engine: json_engine
+    paging: true
+    search_url: https://api.bitbucket.org/2.0/repositories/?q=name~"{query}"&page={pageno}
+    url_query: values/0/links/html/href
+    title_query: values/0/name
+    content_query: values/0/description
+    categories: it
+    shortcut: bb
+    disabled: false
+    timeout: 10.0
+    about:
+      website: https://bitbucket.org/
+      wikidata_id: Q2493781
+      official_api_documentation: https://developer.atlassian.com/bitbucket
+      use_official_api: true
+      require_api_key: false
+      results: JSON
+
+  - name: codeberg
+    engine: json_engine
+    search_url: https://codeberg.org/api/v1/repos/search?q={query}&limit=10&page={pageno}
+    url_query: data/0/html_url
+    title_query: data/0/full_name
+    content_query: data/0/description
+    categories: it
+    shortcut: cb
+    disabled: false
+    timeout: 10.0
+    about:
+      website: https://codeberg.org/
+      wikidata_id: Q73729280
+      official_api_documentation: https://codeberg.org/api/swagger
+      use_official_api: true
+      require_api_key: false
+      results: JSON
+
+  - name: google play apps
+    engine: google_play
+    shortcut: gpa
+    play_categ: apps
+    disabled: false
+    timeout: 10.0
+    categories:
+      - files
+
+  - name: google play movies
+    engine: google_play
+    shortcut: gpm
+    play_categ: movies
+    disabled: false
+    timeout: 10.0
+    categories:
+      - videos
+
+  - name: google play music
+    engine: google_play
+    shortcut: gps
+    play_categ: music
+    disabled: false
+    timeout: 10.0
+    categories:
+      - music
+
+  - name: youtube
+    engine: youtube_noapi
+    shortcut: yt
+    disabled: false
+    timeout: 10.0
+    categories:
+      - videos
+
+  - name: dailymotion
+    engine: dailymotion
+    shortcut: dm
+    disabled: false
+    timeout: 10.0
+    categories:
+      - videos
+
+  - name: vimeo
+    engine: vimeo
+    shortcut: vm
+    disabled: false
+    timeout: 10.0
+    categories:
+      - videos
+
+  - name: reddit
+    engine: reddit
+    shortcut: re
+    page_size: 25
+    timeout: 10.0
+    disabled: false
+    categories:
+      - social media
+
+  - name: flickr
+    engine: flickr
+    shortcut: fl
+    disabled: false
+    timeout: 10.0
+    categories:
+      - images
+
+  - name: unsplash
+    engine: unsplash
+    disabled: false
+    shortcut: us
+    timeout: 10.0
+    categories:
+      - images
+
+  - name: deviantart
+    engine: deviantart
+    shortcut: da
+    timeout: 10.0
+    disabled: false
+    categories:
+      - images
+
+  - name: 500px
+    engine: www500px
+    shortcut: px
+    disabled: false
+    timeout: 10.0
+    categories:
+      - images
+
+  - name:1x
+    engine: www1x
+    shortcut: 1x
+    disabled: false
+    timeout: 10.0
+    categories:
+      - images
+
+  - name: fdroid
+    engine: fdroid
+    shortcut: fd
+    disabled: false
+    timeout: 10.0
+    categories:
+      - files
+
+  - name: apkmirror
+    engine: apkmirror
+    timeout: 10.0
+    shortcut: apkm
+    disabled: false
+    categories:
+      - files
+
+  - name: tineye
+    engine: tineye
+    shortcut: tin
+    timeout: 10.0
+    disabled: false
+    categories:
+      - images
+
+  - name: library genesis
+    engine: xpath
+    search_url: https://libgen.is/search.php?req={query}&column={searxng_category}&sort=year&sortmode=DESC
+    url_xpath: //a[contains(@href,"book/")]/@href
+    title_xpath: //a[contains(@href,"book/")]
+    content_xpath: //td[@colspan="3"]
+    categories:
+      - science
+      - files
+    timeout: 10.0
+    disabled: false
+    shortcut: lg
+    about:
+      website: https://libgen.is/
+      wikidata_id: Q22017206
+      use_official_api: false
+      require_api_key: false
+      results: HTML
+
+  - name: z-library
+    engine: zlibrary
+    shortcut: zlib
+    categories:
+      - files
+    timeout: 10.0
+    disabled: false
+
+  - name: anna's archive
+    engine: annas
+    shortcut: aa
+    disabled: false
+    timeout: 10.0
+    categories:
+      - files
+      - science
+
+  - name: genius
+    engine: genius
+    shortcut: gen
+    disabled: false
+    timeout: 10.0
+    categories:
+      - music
+
+  - name:bt4g
+    engine: bt4g
+    shortcut: bt4g
+    disabled: false
+    timeout: 10.0
+    categories:
+      - files
+
+  - name: btdigg
+    engine: btdigg
+    shortcut: btd
+    timeout: 10.0
+    disabled: false
+    categories:
+      - files
+
+  - name: eztv
+    engine: eztv
+    shortcut: ez
+    timeout: 10.0
+    disabled: false
+    categories:
+      - videos
+      - files
+
+  - name: kickass
+    engine: kickass
+    shortcut: ka
+    timeout: 10.0
+    disabled: false
+    categories:
+      - files
+
+  - name: nyaa
+    engine: nyaa
+    shortcut: nt
+    disabled: false
+    timeout: 10.0
+    categories:
+      - files
+      - images
+      - videos
+      - music
+
+  - name: piratebay
+    engine: piratebay
+    shortcut: tpb
+    url: https://thepiratebay.org/
+    timeout: 10.0
+    disabled: false
+    categories:
+      - files
+      - videos
+      - music
+
+  - name: seedr
+    engine: seedr
+    shortcut: sdr
+    disabled: false
+    categories:
+      - files
+    timeout: 10.0
+
+  - name: solidtorrents
+    engine: solidtorrents
+    shortcut: solid
+    timeout: 10.0
+    disabled: false
+    categories:
+      - files
+
+  - name: tokyotoshokan
+    engine: tokyotoshokan
+    shortcut: tt
+    timeout: 10.0
+    disabled: false
+    categories:
+      - files
+
+  - name: torrentz
+    engine: torrentz
+    shortcut: tor
+    url: https://torrentz2.eu/
+    timeout: 10.0
+    disabled: false
+    categories:
+      - files
+
+  - name: tvmaze
+    engine: tvmaze
+    timeout: 10.0
+    shortcut: tm
+    disabled: false
+    categories:
+      - movies
+
+  - name: urbandictionary
+    engine: xpath
+    search_url: https://www.urbandictionary.com/define.php?term={query}
+    url_xpath: //*[@class="word"]/@href
+    title_xpath: //*[@class="def-header"]
+    content_xpath: //*[@class="meaning"]
+    shortcut: ud
+    disabled: false
+    categories:
+      - dictionaries
+    timeout: 10.0
+
+  - name: yahoo
+    engine: yahoo
+    shortcut: yh
+    disabled: false
+    categories:
+      - general
+    timeout: 10.0
+
+  - name: yggtorrent
+    engine: yggtorrent
+    shortcut: ygg
+    url: https://www4.yggtorrent.li/
+    disabled: false
+    timeout: 10.0
+    categories:
+      - files
+
+  - name: wiby
+    engine: json_engine
+    paging: true
+    search_url: https://wiby.me/json/?q={query}&p={pageno}
+    url_query: URL
+    title_query: Title
+    content_query: Snippet
+    categories: general
+    shortcut: wib
+    disabled: false
+    timeout: 10.0
+
+  - name: rumble
+    engine: rumble
+    shortcut: ru
+    base_url: https://rumble.com/
+    paging: true
+    categories: videos
+    disabled: false
+    timeout: 10.0
+
+  - name: wordnik
+    engine: wordnik
+    shortcut: def
+    base_url: https://www.wordnik.com/
+    categories:
+      - general
+      - dictionaries
+    timeout: 10.0
+    disabled: false
+
+  - name: sjp.pwn
+    engine: sjp
+    shortcut: sjp
+    base_url: https://sjp.pwn.pl/
+    categories:
+      - general
+      - dictionaries
+    timeout: 10.0
+    disabled: false
+
+  - name: onesearch
+    shortcut: onesearch
+    engine: onesearch
+    disabled: false
+    categories:
+      - general
+    timeout: 10.0
+
+  - name: rubygems
+    shortcut: rbg
+    engine: xpath
+    paging: true
+    search_url: https://rubygems.org/search?page={pageno}&query={query}
+    results_xpath: /html/body/main/div/a[@class="gems__gem"]
+    url_xpath: ./@href
+    title_xpath: ./span/h2
+    content_xpath: ./span/p
+    suggestion_xpath: /html/body/main/div/div[@class="search__suggestions"]/p/a
+    first_page_num: 1
+    categories: it
+    disabled: false
+    timeout: 10.0
+    about:
+      website: https://rubygems.org/
+      wikidata_id: Q1853420
+      official_api_documentation: https://guides.rubygems.org/rubygems-org-api/
+      use_official_api: false
+      require_api_key: false
+      results: HTML
+
+  - name: peertube
+    engine: peertube
+    shortcut: ptb
+    paging: true
+    base_url: https://peer.tube/
+    categories: videos
+    disabled: false
+    timeout: 10.0
+
+  - name: 1337x
+    engine: 1337x
+    shortcut: 1337x
+    disabled: false
+    categories:
+      - files
+    timeout: 10.0
+
+  - name: duden
+    engine: duden
+    shortcut: du
+    disabled: false
+    categories:
+      - dictionaries
+    timeout: 10.0
+
+  - name: seznam
+    shortcut: szn
+    engine: seznam
+    disabled: false
+    categories:
+      - general
+    timeout: 10.0
+
+  - name: dogpile
+    shortcut: dp
+    engine: xpath
+    paging: true
+    search_url: https://www.dogpile.com/serp?q={query}&page={pageno}&sc=Gp0GqqlRVflv20
+    url_xpath: //span[@class="web-bing__url"]
+    title_xpath: //a[@class="web-bing__title"]
+    content_xpath: //span[@class="web-bing__description"]
+    page_size: 9
+    categories: general
+    timeout: 10.0
+    disabled: false
+    about:
+      website: https://www.dogpile.com
+      wikidata_id: Q3595363
+      use_official_api: false
+      require_api_key: false
+      results: HTML
+
+  - name: ask
+    shortcut: ask
+    engine: xpath
+    timeout: 10.0
+    disabled: false
+    categories: general
+    paging: true
+    page_size: 10
+    search_url: https://www.ask.com/web?q={query}&qo=pagination&page={pageno}
+    title_xpath: //a[@class="PartialSearchResults-item-title-link result-link"]
+    url_xpath: //a[@class="PartialSearchResults-item-title-link result-link"]/@href
+    content_xpath: //p[@class="PartialSearchResults-item-abstract"]
+    suggestion_xpath: //span[@class="PartialRelatedSearch-item-link-text"]
+    about:
+      website: https://ask.com
+      wikidata_id: Q847564
+      use_official_api: false
+      require_api_key: false
+      results: HTML
+
+  - name: naver
+    shortcut: nvr
+    engine: xpath
+    paging: true
+    search_url: https://search.naver.com/search.naver?where=webkr&sm=osp_hty&ie=UTF-8&query={query}&start={pageno}
+    url_xpath: //a[@class="link_tit"]/@href
+    title_xpath: //a[@class="link_tit"]
+    content_xpath: //a[@class="total_dsc"]/div
+    first_page_num: 1
+    page_size: 10
+    disabled: false
+    categories:
+      - general
+    timeout: 10.0
+    about:
+      website: https://www.naver.com/
+      wikidata_id: Q485639
+      official_api_documentation: https://developers.naver.com/docs/nmt/examples/
+      use_official_api: false
+      require_api_key: false
+      results: HTML
+
+  - name: ahmia
+    engine: ahmia
+    categories: onions
+    enable_http: true
+    shortcut: ah
+    disabled: true
+    timeout: 10.0
+
+  - name: torch
+    engine: xpath
+    paging: true
+    search_url: http://xmh57jrknzkhv6y3ls3ubitzfqnkrwxhopf5aygthi7d6rplyvk3noyd.onion/cgi-bin/omega/omega?P={query}&DEFAULTOP=and
+    results_xpath: //table//tr
+    url_xpath: ./td[2]/a
+    title_xpath: ./td[2]/b
+    content_xpath: ./td[2]/small
+    categories: onions
+    enable_http: true
+    shortcut: tch
+    disabled: true
+    timeout: 10.0
+
+  - name: yacy
+    engine: yacy
+    shortcut: ya
+    base_url: http://yacy.example.com:8090
+    number_of_results: 10
+    disabled: true
+    categories:
+      - general
+    timeout: 10.0
+
+  - name: yacy images
+    engine: yacy
+    shortcut: yai
+    base_url: http://yacy.example.com:8090
+    search_type: image
+    number_of_results: 10
+    disabled: true
+    categories:
+      - images
+    timeout: 10.0
+
